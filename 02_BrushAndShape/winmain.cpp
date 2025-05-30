@@ -39,24 +39,20 @@ void InitD3DAndD2D(HWND hwnd)
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 1,
 		D3D11_SDK_VERSION, g_d3dDevice.GetAddressOf(), &featureLevel, nullptr);
 
-
-
 	// D2D 팩토리 및 디바이스
 	ComPtr<ID2D1Factory3> d2dFactory;
 	D2D1_FACTORY_OPTIONS options = {};
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2dFactory.GetAddressOf());
 
-	
 	ComPtr<IDXGIDevice> dxgiDevice;
 	g_d3dDevice.As(&dxgiDevice);
-
 	ComPtr<ID2D1Device> d2dDevice;
 	d2dFactory->CreateDevice((dxgiDevice.Get()), d2dDevice.GetAddressOf());
-	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,g_d2dDeviceContext.GetAddressOf());
+	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, g_d2dDeviceContext.GetAddressOf());
 
 	ComPtr<IDXGIFactory2> dxgiFactory;
-//	CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory));
-	CreateDXGIFactory2(0,__uuidof(IDXGIFactory2),(void**)dxgiFactory.GetAddressOf());	
+	//	CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory));
+	CreateDXGIFactory2(0, __uuidof(IDXGIFactory2), (void**)dxgiFactory.GetAddressOf());
 
 	// SwapChain 생성
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
@@ -101,7 +97,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	AdjustWindowRect(&clientRect, WS_OVERLAPPEDWINDOW, FALSE);
 
 	g_hwnd = CreateWindowEx(0, L"MyD2DWindowClass", L"D2D1 Clear Example",
-		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
 		clientRect.right - clientRect.left, clientRect.bottom - clientRect.top,
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
