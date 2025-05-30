@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <d2d1_3.h>
-#include <dxgi1_3.h>
+#include <dxgi1_6.h>
 #include <wrl.h>  // ComPtr 사용을 위한 헤더
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d2d1.lib")
@@ -50,10 +50,10 @@ void InitD3DAndD2D(HWND hwnd)
 	d2dFactory->CreateDevice((dxgiDevice.Get()), d2dDevice.GetAddressOf());
 	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, g_d2dDeviceContext.GetAddressOf());
 
-	ComPtr<IDXGIFactory2> dxgiFactory;
-	//	CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory));
-	CreateDXGIFactory2(0, __uuidof(IDXGIFactory2), (void**)dxgiFactory.GetAddressOf());
-
+	ComPtr<IDXGIFactory7> dxgiFactory;
+	CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
+	
+	
 	// SwapChain 생성
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
 	scDesc.Width = g_width;
