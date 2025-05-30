@@ -12,10 +12,9 @@ using namespace Microsoft::WRL;
 // 전역 변수
 HWND g_hwnd = nullptr;
 ComPtr<ID3D11Device> g_d3dDevice;
-ComPtr<ID3D11DeviceContext> g_d3dContext;
-ComPtr<IDXGISwapChain1> g_swapChain;
-ComPtr<ID2D1DeviceContext> g_d2dContext;
-ComPtr<ID2D1Bitmap1> g_d2dTarget;
+ComPtr<IDXGISwapChain1> g_dxgiSwapChain;
+ComPtr<ID2D1DeviceContext> g_d2dDeviceContext;
+ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 
 UINT g_width = 800;
 UINT g_height = 600;
@@ -38,19 +37,18 @@ void InitD3DAndD2D(HWND hwnd)
 	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0 };
 	D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 1,
-		D3D11_SDK_VERSION, g_d3dDevice.GetAddressOf(), &featureLevel, g_d3dContext.GetAddressOf());
-
-	ComPtr<IDXGIDevice> dxgiDevice;
-	g_d3dDevice.As(&dxgiDevice);
+		D3D11_SDK_VERSION, g_d3dDevice.GetAddressOf(), &featureLevel, nullptr);
 
 	// D2D 팩토리 및 디바이스
 	ComPtr<ID2D1Factory3> d2dFactory;
 	D2D1_FACTORY_OPTIONS options = {};
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2dFactory.GetAddressOf());
-
+		
+	ComPtr<IDXGIDevice> dxgiDevice;
+	g_d3dDevice.As(&dxgiDevice);
 	ComPtr<ID2D1Device> d2dDevice;
 	d2dFactory->CreateDevice((dxgiDevice.Get()), d2dDevice.GetAddressOf());
-	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,g_d2dContext.GetAddressOf());
+	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,g_d2dDeviceContext.GetAddressOf());
 
 	ComPtr<IDXGIFactory2> dxgiFactory;
 //	CreateDXGIFactory2(0, IID_PPV_ARGS(&dxgiFactory));
@@ -65,25 +63,25 @@ void InitD3DAndD2D(HWND hwnd)
 	scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	scDesc.BufferCount = 2;
 	scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	dxgiFactory->CreateSwapChainForHwnd(g_d3dDevice.Get(), hwnd, &scDesc, nullptr, nullptr, g_swapChain.GetAddressOf());
+	dxgiFactory->CreateSwapChainForHwnd(g_d3dDevice.Get(), hwnd, &scDesc, nullptr, nullptr, g_dxgiSwapChain.GetAddressOf());
 
 	// 백버퍼를 타겟으로 설정
 	ComPtr<IDXGISurface> backBuffer;
-	g_swapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
+	g_dxgiSwapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
 	D2D1_BITMAP_PROPERTIES1 bmpProps = D2D1::BitmapProperties1(
 		D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
 		D2D1::PixelFormat(scDesc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED)
 	);
-	g_d2dContext->CreateBitmapFromDxgiSurface(backBuffer.Get(), &bmpProps, g_d2dTarget.GetAddressOf());
-	g_d2dContext->SetTarget(g_d2dTarget.Get());
+	g_d2dDeviceContext->CreateBitmapFromDxgiSurface(backBuffer.Get(), &bmpProps, g_d2dBitmapTarget.GetAddressOf());
+	g_d2dDeviceContext->SetTarget(g_d2dBitmapTarget.Get());
 }
 
 void ClearScreen()
 {
-	g_d2dContext->BeginDraw();
-	g_d2dContext->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
-	g_d2dContext->EndDraw();
-	g_swapChain->Present(1, 0);
+	g_d2dDeviceContext->BeginDraw();
+	g_d2dDeviceContext->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
+	g_d2dDeviceContext->EndDraw();
+	g_dxgiSwapChain->Present(1, 0);
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
