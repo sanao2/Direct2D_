@@ -51,8 +51,8 @@ void InitD3DAndD2D(HWND hwnd)
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 1,
 		D3D11_SDK_VERSION, &d3dDevice, &featureLevel, nullptr);
 	
-	//g_d3dDevice->QueryInterface(IID_PPV_ARGS(&g_dxgiDevice));
-	d3dDevice->QueryInterface(__uuidof(*dxgiDevice), (void**)&dxgiDevice);
+	//g_d3dDevice->QueryInterface(IID_PPV_ARGS(&g_dxgiDevice));	
+	d3dDevice->QueryInterface(__uuidof(dxgiDevice), (void**)&dxgiDevice);
 
 	// D2D1	
 	ID2D1Factory8* d2dFactory = nullptr;
@@ -66,7 +66,7 @@ void InitD3DAndD2D(HWND hwnd)
 
 	// DXGI
 	IDXGIFactory7* dxgiFactory = nullptr;	//
-	CreateDXGIFactory(__uuidof(*dxgiFactory), (void**)&dxgiFactory);
+	CreateDXGIFactory(__uuidof(dxgiFactory), (void**)&dxgiFactory);
 
 	// SwapChain 생성
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
@@ -82,7 +82,7 @@ void InitD3DAndD2D(HWND hwnd)
 
 	// 백버퍼를 타겟으로 설정
 	IDXGISurface* backBuffer=nullptr;
-	g_dxgiSwapChain->GetBuffer(0, __uuidof(*backBuffer), (void**)&backBuffer); 
+	g_dxgiSwapChain->GetBuffer(0, __uuidof(backBuffer), (void**)&backBuffer); 
 	D2D1_BITMAP_PROPERTIES1 bmpProps = D2D1::BitmapProperties1(
 		D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
 		D2D1::PixelFormat(scDesc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED)
@@ -116,6 +116,10 @@ void ClearScreen()
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
+	HRESULT hr = S_OK;
+	// COM 사용 시작
+	hr = CoInitialize(NULL);
+
 	WNDCLASS wc = {};
 	wc.lpfnWndProc = WndProc;
 	wc.hInstance = hInstance;
@@ -147,5 +151,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 
 	UninitD3DAndD2D(); 	
+
+	CoUninitialize();
 	return 0;
 }
