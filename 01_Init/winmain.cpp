@@ -18,11 +18,9 @@ IDXGISwapChain1* g_dxgiSwapChain = nullptr;
 ID2D1DeviceContext* g_d2dDeviceContext = nullptr;
 ID2D1Bitmap1* g_d2dBitmapTarget = nullptr;
 
-
-
 UINT g_width = 800;
 UINT g_height = 600;
-bool g_resized = false;
+
 // 윈도우 프로시저
 void InitD3DAndD2D(HWND hwnd);
 void UninitD3DAndD2D();
@@ -33,29 +31,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_DESTROY:
 		PostQuitMessage(0);
-		break;
-
-	case WM_SIZE:
-		{
-			if (wParam == SIZE_MINIMIZED) 
-				break; // 최소화는 무시
-			
-			UINT width = LOWORD(lParam); // 새 너비
-			UINT height = HIWORD(lParam); // 새 높이			
-			if (g_width != width || g_height != height)
-			{
-				g_width = width;
-				g_height = height;
-				g_resized = true;
-			}
-		}
-		break;
-	case WM_EXITSIZEMOVE:	
-		if (g_resized)
-		{
-			UninitD3DAndD2D();
-			InitD3DAndD2D(hWnd);
-		}
 		break;
 	default:
 		break;

@@ -16,15 +16,48 @@ ComPtr<IDXGISwapChain1> g_dxgiSwapChain;
 ComPtr<ID2D1DeviceContext> g_d2dDeviceContext;
 ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 
+ComPtr<ID2D1SolidColorBrush> g_pBlackBrush;		// 렌더타겟이 생성하는 리소스 역시 장치의존
+ComPtr<ID2D1SolidColorBrush> g_pGrayBrush;
+
 UINT g_width = 800;
 UINT g_height = 600;
+bool g_resized = false;
 
-// 윈도우 프로시저
+void InitD3DAndD2D(HWND hwnd);
+void UninitD3DAndD2D();
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	if (msg == WM_DESTROY) {
+	switch (msg)
+	{
+	case WM_DESTROY:
 		PostQuitMessage(0);
-		return 0;
+		break;
+
+	case WM_SIZE:
+	{
+		if (wParam == SIZE_MINIMIZED)
+			break; // 최소화는 무시
+
+		UINT width = LOWORD(lParam); // 새 너비
+		UINT height = HIWORD(lParam); // 새 높이			
+		if (g_width != width || g_height != height)
+		{
+			g_width = width;
+			g_height = height;
+			g_resized = true;
+		}
+	}
+	break;
+	case WM_EXITSIZEMOVE:
+		if (g_resized)
+		{
+			UninitD3DAndD2D();
+			InitD3DAndD2D(hWnd);
+		}
+		break;
+	default:
+		break;
 	}
 	return DefWindowProc(hWnd, msg, wParam, lParam);
 }
@@ -74,12 +107,52 @@ void InitD3DAndD2D(HWND hwnd)
 	);
 	g_d2dDeviceContext->CreateBitmapFromDxgiSurface(backBuffer.Get(), &bmpProps, g_d2dBitmapTarget.GetAddressOf());
 	g_d2dDeviceContext->SetTarget(g_d2dBitmapTarget.Get());
+
+
+
+	g_d2dDeviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), g_pBlackBrush.GetAddressOf());	
+
+	g_d2dDeviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Gray), g_pGrayBrush.GetAddressOf());
+	
+}
+
+void UninitD3DAndD2D()
+{
+	g_pBlackBrush = nullptr;	// 렌더타겟이 생성하는 리소스 역시 장치의존
+	g_pGrayBrush = nullptr;
+
+	g_d3dDevice = nullptr;
+	g_dxgiSwapChain = nullptr;
+	g_d2dDeviceContext = nullptr;
+	g_d2dBitmapTarget = nullptr;
 }
 
 void ClearScreen()
 {
 	g_d2dDeviceContext->BeginDraw();
 	g_d2dDeviceContext->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
+
+	D2D1_SIZE_F size = g_d2dDeviceContext->GetSize();
+	for (float y = 0; y < size.height; y += 10)
+	{
+		g_d2dDeviceContext->DrawLine(
+			D2D1::Point2F(0.0f, y),
+			D2D1::Point2F(size.width, y),
+			g_pBlackBrush.Get(), 0.5f
+
+		);
+	}
+
+	g_d2dDeviceContext->FillRectangle(
+		D2D1::RectF(size.width / 2 - 150.0f, size.height / 2 - 150.0f,
+			size.width / 2 + 150.0f, size.height / 2 + 150.0f), g_pGrayBrush.Get());
+
+	g_d2dDeviceContext->DrawRectangle(
+		D2D1::RectF(size.width / 2 - 50.0f, size.height / 2 - 50.0f,
+			size.width / 2 + 50.0f, size.height / 2 + 50.0f), g_pBlackBrush.Get());
+
+
+
 	g_d2dDeviceContext->EndDraw();
 	g_dxgiSwapChain->Present(1, 0);
 }
@@ -116,5 +189,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 	}
 
+	UninitD3DAndD2D();
 	return 0;
 }
