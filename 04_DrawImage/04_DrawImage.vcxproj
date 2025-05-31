@@ -22,7 +22,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{089840ab-5863-402e-ba1a-0e949d3803be}</ProjectGuid>
-    <RootNamespace>My03DrawImage</RootNamespace>
+    <RootNamespace>My04DrawImage</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>04_DrawImage</ProjectName>
   </PropertyGroup>
