@@ -1,6 +1,6 @@
 #include <windows.h>
 #include <d3d11.h>
-#include <d2d1_3.h> //ID2D1Factory8
+#include <d2d1_3.h> //ID2D1Factory8,ID2D1DeviceContext7
 #include <dxgi1_6.h> // IDXGIFactory7
 #include <wrl.h>  // ComPtr 사용을 위한 헤더
 
@@ -15,7 +15,7 @@ using namespace Microsoft::WRL;
 HWND g_hwnd = nullptr;
 
 IDXGISwapChain1* g_dxgiSwapChain = nullptr;
-ID2D1DeviceContext* g_d2dDeviceContext = nullptr;
+ID2D1DeviceContext7* g_d2dDeviceContext = nullptr;
 ID2D1Bitmap1* g_d2dBitmapTarget = nullptr;
 
 UINT g_width = 800;
