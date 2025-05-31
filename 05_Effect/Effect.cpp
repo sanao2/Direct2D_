@@ -13,6 +13,9 @@
 #include <wincodec.h>
 #pragma comment(lib,"windowscodecs.lib")
 
+#include <d2d1effects_2.h>
+#pragma comment(lib, "dxguid.lib")
+
 using namespace Microsoft::WRL;
 
 // 전역 변수
@@ -26,6 +29,9 @@ ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 ComPtr<IWICImagingFactory> g_wicImagingFactory;
 ComPtr<ID2D1Bitmap> g_d2dBitmapFromFile;
 
+// Effect
+ComPtr<ID2D1Effect> g_skewEffect;
+ComPtr<ID2D1Effect> g_shadowEffect;
 
 UINT g_width = 1024;
 UINT g_height = 768;
@@ -38,7 +44,7 @@ void UninitD3DAndD2D();
 
 HRESULT CreateD2DBitmapFromFile(const WCHAR* szFilePath,
 	IWICImagingFactory* pWICImagingFactory,
-	ID2D1RenderTarget* pRenderTarget,ID2D1Bitmap** ppID2D1Bitmap)
+	ID2D1RenderTarget* pRenderTarget, ID2D1Bitmap** ppID2D1Bitmap)
 {
 	HRESULT hr;
 	// Create a decoder
@@ -180,16 +186,45 @@ void InitD3DAndD2D(HWND hwnd)
 	);
 	g_d2dDeviceContext->CreateBitmapFromDxgiSurface(backBuffer.Get(), &bmpProps, g_d2dBitmapTarget.GetAddressOf());
 	g_d2dDeviceContext->SetTarget(g_d2dBitmapTarget.Get());
-		
+
 
 	// Create WIC factory
 	hr = CoCreateInstance(CLSID_WICImagingFactory,
-			NULL,CLSCTX_INPROC_SERVER,
-			__uuidof(g_wicImagingFactory),
-			(void**)g_wicImagingFactory.GetAddressOf());
+		NULL, CLSCTX_INPROC_SERVER,
+		__uuidof(g_wicImagingFactory),
+		(void**)g_wicImagingFactory.GetAddressOf());
 
 	hr = CreateD2DBitmapFromFile(L"../Resource/mushroom.png",
-		g_wicImagingFactory.Get(),g_d2dDeviceContext.Get(), g_d2dBitmapFromFile.GetAddressOf());
+		g_wicImagingFactory.Get(), g_d2dDeviceContext.Get(), g_d2dBitmapFromFile.GetAddressOf());
+
+
+	// Effect
+	//1.AffineTransform2D 이펙트 생성	
+	hr = g_d2dDeviceContext->CreateEffect(CLSID_D2D12DAffineTransform, g_skewEffect.GetAddressOf());
+
+	// 반투명 검정색으로 바꾸기 위해 ColorMatrix 사용 (선택적)	
+	hr = g_d2dDeviceContext->CreateEffect(CLSID_D2D1ColorMatrix,g_shadowEffect.GetAddressOf());
+
+	
+	D2D1_MATRIX_3X2_F skewMatrix = {
+		1.0f, 0.0f,      // X scale, Y shear
+	    1.4f, 1.0f,      // X shear, Y scale
+		-60.0f, 0.0f       // X, Y translation
+	};
+
+	// 3. 이펙트에 입력 이미지와 행렬 설정
+	g_skewEffect->SetInput(0, g_d2dBitmapFromFile.Get());  // 캐릭터 비트맵
+	g_skewEffect->SetValue(D2D1_2DAFFINETRANSFORM_PROP_TRANSFORM_MATRIX, skewMatrix);
+	g_skewEffect->SetValue(D2D1_2DAFFINETRANSFORM_PROP_INTERPOLATION_MODE, D2D1_2DAFFINETRANSFORM_INTERPOLATION_MODE_LINEAR);
+	D2D1_MATRIX_5X4_F shadowMatrix = {
+		0, 0, 0, 0,  // R
+		0, 0, 0, 0,  // G
+		0, 0, 0, 0,  // B
+		0, 0, 0, 0.5f,  // A (투명도 조절)
+		0, 0, 0, 0   // Offset
+	};
+	g_shadowEffect->SetInputEffect(0, g_skewEffect.Get());
+	g_shadowEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, shadowMatrix);
 }
 
 void UninitD3DAndD2D()
@@ -210,54 +245,13 @@ void Render()
 
 	D2D1_SIZE_F size;
 
-	g_d2dDeviceContext->SetTransform(D2D1::Matrix3x2F::Identity()); // 변환 초기화
+	//  그림자 출력
+	D2D1::Matrix3x2F translation = D2D1::Matrix3x2F::Translation(100.0f, 100.0f);
+	g_d2dDeviceContext->SetTransform(translation);
 
-	//1. 0,0 위치에 비트맵 전체영역 그린다. (변환은 초기화)
-	g_d2dDeviceContext->DrawBitmap(g_d2dBitmapFromFile.Get());
-
-	//2. DestPos(화면 위치) 설정과 SrcPos(비트맵 위치)로 그리기
-	D2D1_VECTOR_2F DestPos{ 0,0 }, SrcPos{ 0,0 }; // 화면 위치, 비트맵 위치
-	size = { 0,0 };	//	그릴 크기
-	D2D1_RECT_F DestRect{ 0,0,0,0 }, SrcRect{ 0,0,0,0 }; // 화면 영역, 비트맵 영역
-	D2D1_MATRIX_3X2_F transform;	// 변환 행렬
-
-	size = g_d2dBitmapFromFile->GetSize();
-	DestPos = { 100,0 };
-	DestRect = { DestPos.x , DestPos.y, DestPos.x + size.width - 1 ,DestPos.y + size.height - 1 };
-	g_d2dDeviceContext->DrawBitmap(g_d2dBitmapFromFile.Get(), DestRect);
-
-
-	//3. DestRect(그릴 영역) 설정과 SrcRect(비트맵 일부 영역)로 그리기
-	size = { 200,200 };
-	DestPos = { 100,100 };
-	DestRect = { DestPos.x , DestPos.y, DestPos.x + size.width - 1 ,DestPos.y + size.height - 1 };
-
-	SrcPos = { 0,0 };
-	SrcRect = { SrcPos.x,SrcPos.y, SrcPos.x + size.width - 1 ,SrcPos.y + size.height - 1 };
-	g_d2dDeviceContext->DrawBitmap(g_d2dBitmapFromFile.Get(), DestRect, 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &SrcRect);
-
-
-	//4. 변환을 사용한 반전으로 DestRect(그릴 영역) 설정과 SrcRect(비트맵 일부 영역)로 그리기
-	DestPos = { 700,100 };
-	DestRect = { DestPos.x , DestPos.y, DestPos.x + size.width - 1 ,DestPos.y + size.height - 1 };
-
-	transform = D2D1::Matrix3x2F::Scale(-1.0f, 1.0f,  // x축 반전
-		D2D1::Point2F(DestPos.x, DestPos.y));        // 기준점
-	g_d2dDeviceContext->SetTransform(transform);
-	g_d2dDeviceContext->DrawBitmap(g_d2dBitmapFromFile.Get(), DestRect, 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &SrcRect);
-
-	//5. 복합변환을 사용한 반전으로 DestRect(그릴 영역) 설정과 SrcRect(비트맵 일부 영역)로 그리기
-	DestPos = { 0,0 };   // 그릴 위치는 0,0으로 하고 이동변환을 사용한다.
-	DestRect = { DestPos.x , DestPos.y, DestPos.x + size.width - 1 ,DestPos.y + size.height - 1 };
-
-	transform = D2D1::Matrix3x2F::Scale(1.0f, 1.0f, D2D1::Point2F(0.0f, 0.0f)) *
-		D2D1::Matrix3x2F::Rotation(90.0f, D2D1::Point2F(0.0f, 0.0f)) * // 90도 회전
-		D2D1::Matrix3x2F::Translation(900.0f, 900.0f);  // 이동
-
-	// 기준점
-	g_d2dDeviceContext->SetTransform(transform);
-	g_d2dDeviceContext->DrawBitmap(g_d2dBitmapFromFile.Get(), DestRect, 1.0f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &SrcRect);
-
+	g_d2dDeviceContext->DrawImage(g_shadowEffect.Get());	
+	g_d2dDeviceContext->DrawBitmap(g_d2dBitmapFromFile.Get());		
+	
 	g_d2dDeviceContext->EndDraw();
 	g_dxgiSwapChain->Present(1, 0);
 }
@@ -274,7 +268,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	RECT clientRect = { 0, 0, clientSize.cx, clientSize.cy };
 	AdjustWindowRect(&clientRect, WS_OVERLAPPEDWINDOW, FALSE);
 
-	g_hwnd = CreateWindowEx(0, L"MyD2DWindowClass", L"D2D1 Clear Example",
+	g_hwnd = CreateWindowEx(0, L"MyD2DWindowClass", L"D2D1 Effect Example",
 		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
 		clientRect.right - clientRect.left, clientRect.bottom - clientRect.top,
 		nullptr, nullptr, hInstance, nullptr);
