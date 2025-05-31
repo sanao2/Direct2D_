@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <d3d11.h>
-#include <d2d1_3.h>
-#include <dxgi1_6.h>
+#include <d2d1_3.h> //ID2D1Factory8,ID2D1DeviceContext7
+#include <dxgi1_6.h>  // IDXGIFactory7
 #include <wrl.h>  // ComPtr 사용을 위한 헤더
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d2d1.lib")
@@ -13,7 +13,7 @@ using namespace Microsoft::WRL;
 HWND g_hwnd = nullptr;
 ComPtr<ID3D11Device> g_d3dDevice;
 ComPtr<IDXGISwapChain1> g_dxgiSwapChain;
-ComPtr<ID2D1DeviceContext> g_d2dDeviceContext;
+ComPtr<ID2D1DeviceContext7> g_d2dDeviceContext;
 ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 
 ComPtr<ID2D1SolidColorBrush> g_pBlackBrush;		// 렌더타겟이 생성하는 리소스 역시 장치의존
@@ -73,13 +73,13 @@ void InitD3DAndD2D(HWND hwnd)
 		D3D11_SDK_VERSION, g_d3dDevice.GetAddressOf(), &featureLevel, nullptr);
 
 	// D2D 팩토리 및 디바이스
-	ComPtr<ID2D1Factory3> d2dFactory;
+	ComPtr<ID2D1Factory8> d2dFactory;
 	D2D1_FACTORY_OPTIONS options = {};
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2dFactory.GetAddressOf());
 
 	ComPtr<IDXGIDevice> dxgiDevice;
 	g_d3dDevice.As(&dxgiDevice);
-	ComPtr<ID2D1Device> d2dDevice;
+	ComPtr<ID2D1Device7> d2dDevice;
 	d2dFactory->CreateDevice((dxgiDevice.Get()), d2dDevice.GetAddressOf());
 	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, g_d2dDeviceContext.GetAddressOf());
 

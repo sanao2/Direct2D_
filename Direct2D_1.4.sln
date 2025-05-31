@@ -7,7 +7,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "01_Clear", "01_Init\01_Init
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "02_BrushAndShape", "02_BrushAndShape\02_BrushAndShape.vcxproj", "{CBA07338-2791-4EEE-A3AA-989DBE9A8F3A}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "03_DrawImage", "03_DrawImage\03_DrawImage.vcxproj", "{089840AB-5863-402E-BA1A-0E949D3803BE}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "04_DrawImage", "04_DrawImage\04_DrawImage.vcxproj", "{089840AB-5863-402E-BA1A-0E949D3803BE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
