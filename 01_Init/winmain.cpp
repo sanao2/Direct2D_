@@ -106,7 +106,7 @@ void UninitD3DAndD2D()
 	if (g_d2dBitmapTarget) g_d2dBitmapTarget->Release();
 }
 
-void ClearScreen()
+void Render()
 {
 	g_d2dDeviceContext->BeginDraw();
 	g_d2dDeviceContext->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
@@ -146,7 +146,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 		else {
-			ClearScreen(); // 매 프레임마다 클리어
+			Render(); 
 		}
 	}
 

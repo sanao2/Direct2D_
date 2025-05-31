@@ -1,5 +1,4 @@
 #include <windows.h>
-
 #include <wrl.h>  // ComPtr 사용을 위한 헤더
 
 #include <d3d11.h>

@@ -1,11 +1,17 @@
 #include <windows.h>
-#include <d3d11.h>
-#include <d2d1_3.h> //ID2D1Factory8,ID2D1DeviceContext7
-#include <dxgi1_6.h>  // IDXGIFactory7
 #include <wrl.h>  // ComPtr 사용을 위한 헤더
+
+#include <d3d11.h>
 #pragma comment(lib, "d3d11.lib")
+
+#include <d2d1_3.h> //ID2D1Factory8,ID2D1DeviceContext7
 #pragma comment(lib, "d2d1.lib")
+
+#include <dxgi1_6.h> // IDXGIFactory7
 #pragma comment(lib, "dxgi.lib")
+
+#include <dwrite.h>
+#pragma comment(lib,"dwrite.lib")
 
 using namespace Microsoft::WRL;
 
@@ -16,8 +22,10 @@ ComPtr<IDXGISwapChain1> g_dxgiSwapChain;
 ComPtr<ID2D1DeviceContext7> g_d2dDeviceContext;
 ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 
-ComPtr<ID2D1SolidColorBrush> g_pBlackBrush;		// 렌더타겟이 생성하는 리소스 역시 장치의존
-ComPtr<ID2D1SolidColorBrush> g_pGrayBrush;
+// For DrawText
+ComPtr<ID2D1SolidColorBrush> g_blackBrush;		
+ComPtr<IDWriteFactory> g_dWriteFactory;
+ComPtr<IDWriteTextFormat> g_dWriteTextFormat;
 
 UINT g_width = 800;
 UINT g_height = 600;
@@ -85,8 +93,8 @@ void InitD3DAndD2D(HWND hwnd)
 
 	ComPtr<IDXGIFactory7> dxgiFactory;
 	CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
-	
-	
+
+
 	// SwapChain 생성
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
 	scDesc.Width = g_width;
@@ -109,18 +117,34 @@ void InitD3DAndD2D(HWND hwnd)
 	g_d2dDeviceContext->SetTarget(g_d2dBitmapTarget.Get());
 
 
-
-	g_d2dDeviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), g_pBlackBrush.GetAddressOf());	
-
-	g_d2dDeviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Gray), g_pGrayBrush.GetAddressOf());
+	// Brush
+	g_d2dDeviceContext->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Black), g_blackBrush.GetAddressOf());
 	
+	// DirectWrite 팩터리를 만듭니다.
+	DWriteCreateFactory(
+		DWRITE_FACTORY_TYPE_SHARED,
+		__uuidof(g_dWriteFactory),
+		reinterpret_cast<IUnknown**>(g_dWriteFactory.GetAddressOf()));
+
+	// DirectWrite 텍스트 형식 개체를 만듭니다.
+	g_dWriteFactory->CreateTextFormat(
+		L"Cooper", // FontName    제어판-모든제어판-항목-글꼴-클릭 으로 글꼴이름 확인가능
+		NULL,
+		DWRITE_FONT_WEIGHT_NORMAL,
+		DWRITE_FONT_STYLE_NORMAL,
+		DWRITE_FONT_STRETCH_NORMAL,
+		50.0f,   // Font Size
+		L"", //locale
+		&g_dWriteTextFormat
+	);	
+
+	// 텍스트를 수평 및 수직으로 중앙에 맞춥니다.
+	g_dWriteTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+	g_dWriteTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 }
 
 void UninitD3DAndD2D()
 {
-	g_pBlackBrush = nullptr;	// 렌더타겟이 생성하는 리소스 역시 장치의존
-	g_pGrayBrush = nullptr;
-
 	g_d3dDevice = nullptr;
 	g_dxgiSwapChain = nullptr;
 	g_d2dDeviceContext = nullptr;
@@ -133,25 +157,15 @@ void Render()
 	g_d2dDeviceContext->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
 
 	D2D1_SIZE_F size = g_d2dDeviceContext->GetSize();
-	for (float y = 0; y < size.height; y += 10)
-	{
-		g_d2dDeviceContext->DrawLine(
-			D2D1::Point2F(0.0f, y),
-			D2D1::Point2F(size.width, y),
-			g_pBlackBrush.Get(), 0.5f
 
-		);
-	}
-
-	g_d2dDeviceContext->FillRectangle(
-		D2D1::RectF(size.width / 2 - 150.0f, size.height / 2 - 150.0f,
-			size.width / 2 + 150.0f, size.height / 2 + 150.0f), g_pGrayBrush.Get());
-
-	g_d2dDeviceContext->DrawRectangle(
-		D2D1::RectF(size.width / 2 - 50.0f, size.height / 2 - 50.0f,
-			size.width / 2 + 50.0f, size.height / 2 + 50.0f), g_pBlackBrush.Get());
-
-
+	WCHAR sc_helloWorld[] = L"Hello, World! abc";
+	g_d2dDeviceContext->DrawText(
+		sc_helloWorld,
+		ARRAYSIZE(sc_helloWorld) - 1,
+		g_dWriteTextFormat.Get(),
+		D2D1::RectF(0, 0, size.width, size.height / 2),
+		g_blackBrush.Get()
+	);
 
 	g_d2dDeviceContext->EndDraw();
 	g_dxgiSwapChain->Present(1, 0);
@@ -169,7 +183,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	RECT clientRect = { 0, 0, clientSize.cx, clientSize.cy };
 	AdjustWindowRect(&clientRect, WS_OVERLAPPEDWINDOW, FALSE);
 
-	g_hwnd = CreateWindowEx(0, L"MyD2DWindowClass", L"D2D1 Clear Example",
+	g_hwnd = CreateWindowEx(0, L"MyD2DWindowClass", L"D2D1 Draw Text Example",
 		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
 		clientRect.right - clientRect.left, clientRect.bottom - clientRect.top,
 		nullptr, nullptr, hInstance, nullptr);
@@ -185,7 +199,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 		else {
-			Render(); // 매 프레임마다 클리어
+			Render(); 
 		}
 	}
 
