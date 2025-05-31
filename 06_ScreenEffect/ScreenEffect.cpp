@@ -333,7 +333,7 @@ void Render()
 	D2D1_RECT_F DestRect{ 0,0,size.width,size.height};	
 	g_d2dDeviceContext->DrawBitmap(
 		g_d2dBitmapBlood.Get(),
-		DestRect,           // 전체 이미지
+		DestRect,           // g_d2dBitmapScene 크기에 맞게 늘림
 		1.0f,              // Opacity (0.0 ~ 1.0)
 		D2D1_INTERPOLATION_MODE_LINEAR,
 		nullptr            // 이미지 원본 영역 전체 사용
@@ -386,7 +386,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 		else {
-			Render(); // 매 프레임마다 클리어
+			Render(); 
 		}
 	}
 
