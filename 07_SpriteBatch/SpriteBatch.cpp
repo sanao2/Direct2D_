@@ -40,7 +40,7 @@ void OutputError(HRESULT hr) {
 }
 
 // WIC를 통해 PNG 등을 로드하여 ID2D1Bitmap1**으로 반환
-HRESULT LoadBitmapFromFile(const wchar_t* path, ID2D1Bitmap1** outBitmap) {
+HRESULT CreateBitmapFromFile(const wchar_t* path, ID2D1Bitmap1** outBitmap) {
 	ComPtr<IWICBitmapDecoder>     decoder;
 	ComPtr<IWICBitmapFrameDecode> frame;
 	ComPtr<IWICFormatConverter>   converter;
@@ -213,7 +213,7 @@ void Init(HWND hwnd) {
 	assert(SUCCEEDED(hr));
 
 	// 6. Resource/mushroom.png 로드
-	hr = LoadBitmapFromFile(L"../Resource/mushroom.png", &g_bitmap);
+	hr = CreateBitmapFromFile(L"../Resource/mushroom.png", &g_bitmap);
 	if (FAILED(hr)) {
 		OutputError(hr);
 	}

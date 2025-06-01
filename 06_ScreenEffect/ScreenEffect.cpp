@@ -33,7 +33,7 @@ ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 
 // For ImageDraw
 ComPtr<IWICImagingFactory> g_wicImagingFactory;
-ComPtr<ID2D1Bitmap> g_d2dBitmapMushroom;
+ComPtr<ID2D1Bitmap1> g_d2dBitmapMushroom;
 
 // Effect
 ComPtr<ID2D1Effect> g_skewEffect;
@@ -42,76 +42,55 @@ ComPtr<ID2D1Effect> g_sceneEffect;
 
 //SceneBuffer
 ComPtr<ID2D1Bitmap1> g_d2dBitmapScene;
-ComPtr<ID2D1Bitmap> g_d2dBitmapBlood;
+ComPtr<ID2D1Bitmap1> g_d2dBitmapBlood;
 
 UINT g_width = 1024;
 UINT g_height = 768;
 bool g_resized = false;
 bool g_useScreenEffect = false;
 
-void InitD3DAndD2D(HWND hwnd);
-void UninitD3DAndD2D();
+void Initialize(HWND hwnd);
+void Uninitialize();
 
-
-
-HRESULT CreateD2DBitmapFromFile(const WCHAR* szFilePath,
-	IWICImagingFactory* pWICImagingFactory,
-	ID2D1RenderTarget* pRenderTarget, ID2D1Bitmap** ppID2D1Bitmap)
+// WIC를 통해 PNG 등을 로드하여 ID2D1Bitmap1**으로 반환
+HRESULT CreateBitmapFromFile(const wchar_t* path, ID2D1Bitmap1** outBitmap) 
 {
-	HRESULT hr;
-	// Create a decoder
-	IWICBitmapDecoder* pDecoder = NULL;
-	IWICFormatConverter* pConverter = NULL;
+	ComPtr<IWICBitmapDecoder>     decoder;
+	ComPtr<IWICBitmapFrameDecode> frame;
+	ComPtr<IWICFormatConverter>   converter;
 
-	hr = pWICImagingFactory->CreateDecoderFromFilename(
-		szFilePath,                      // Image to be decoded
-		NULL,                            // Do not prefer a particular vendor
-		GENERIC_READ,                    // Desired read access to the file
-		WICDecodeMetadataCacheOnDemand,  // Cache metadata when needed
-		&pDecoder                        // Pointer to the decoder
+	// ① 디코더 생성
+	HRESULT hr = g_wicImagingFactory->CreateDecoderFromFilename(
+		path, nullptr, GENERIC_READ, WICDecodeMetadataCacheOnLoad, &decoder);
+	if (FAILED(hr)) return hr;
+
+	// ② 첫 프레임 얻기
+	hr = decoder->GetFrame(0, &frame);
+	if (FAILED(hr)) return hr;
+
+	// ③ 포맷 변환기 생성
+	hr = g_wicImagingFactory->CreateFormatConverter(&converter);
+	if (FAILED(hr)) return hr;
+
+	// ④ GUID_WICPixelFormat32bppPBGRA로 변환
+	hr = converter->Initialize(
+		frame.Get(),
+		GUID_WICPixelFormat32bppPBGRA,
+		WICBitmapDitherTypeNone,
+		nullptr,
+		0.0f,
+		WICBitmapPaletteTypeCustom
+	);
+	if (FAILED(hr)) return hr;
+
+	// ⑤ Direct2D 비트맵 속성 (premultiplied alpha, B8G8R8A8_UNORM)
+	D2D1_BITMAP_PROPERTIES1 bmpProps = D2D1::BitmapProperties1(
+		D2D1_BITMAP_OPTIONS_NONE,
+		D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED)
 	);
 
-	// Retrieve the first frame of the image from the decoder
-	IWICBitmapFrameDecode* pFrame = NULL;
-	if (SUCCEEDED(hr))
-	{
-		hr = pDecoder->GetFrame(0, &pFrame);
-	}
-
-	//Step 3: Format convert the frame to 32bppPBGRA
-	if (SUCCEEDED(hr))
-	{
-		hr = pWICImagingFactory->CreateFormatConverter(&pConverter);
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		hr = pConverter->Initialize(
-			pFrame,                          // Input bitmap to convert
-			GUID_WICPixelFormat32bppPBGRA,   // Destination pixel format
-			WICBitmapDitherTypeNone,         // Specified dither pattern
-			NULL,                            // Specify a particular palette 
-			0.f,                             // Alpha threshold
-			WICBitmapPaletteTypeCustom       // Palette translation type
-		);
-	}
-
-	if (SUCCEEDED(hr))
-	{
-		hr = pRenderTarget->CreateBitmapFromWicBitmap(pConverter, NULL, ppID2D1Bitmap);
-	}
-
-
-	// 파일을 사용할때마다 다시 만든다.
-	if (pConverter)
-		pConverter->Release();
-
-	if (pDecoder)
-		pDecoder->Release();
-
-	if (pFrame)
-		pFrame->Release();
-
+	// ⑥ DeviceContext에서 WIC 비트맵으로부터 D2D1Bitmap1 생성
+	hr = g_d2dDeviceContext->CreateBitmapFromWicBitmap(converter.Get(), &bmpProps, outBitmap);
 	return hr;
 }
 
@@ -142,13 +121,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 	}
 	break;
-	case WM_EXITSIZEMOVE:
-		if (g_resized)
-		{
-			UninitD3DAndD2D();
-			InitD3DAndD2D(hWnd);
-		}
-		break;
 	default:
 		break;
 	}
@@ -156,14 +128,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 // 초기화
-void InitD3DAndD2D(HWND hwnd)
+void Initialize(HWND hwnd)
 {
 	HRESULT hr;
 	// D3D11 디바이스 생성
 	UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#if defined(_DEBUG)
-	creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
 	D3D_FEATURE_LEVEL featureLevel;
 	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0 };
 	D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
@@ -172,7 +141,7 @@ void InitD3DAndD2D(HWND hwnd)
 
 	// D2D 팩토리 및 디바이스
 	ComPtr<ID2D1Factory8> d2dFactory;
-	D2D1_FACTORY_OPTIONS options = {};
+	D2D1_FACTORY_OPTIONS options = { D2D1_DEBUG_LEVEL_INFORMATION };
 	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2dFactory.GetAddressOf());
 
 	ComPtr<IDXGIDevice> dxgiDevice;
@@ -214,8 +183,7 @@ void InitD3DAndD2D(HWND hwnd)
 		__uuidof(g_wicImagingFactory),
 		(void**)g_wicImagingFactory.GetAddressOf());
 
-	hr = CreateD2DBitmapFromFile(L"../Resource/mushroom.png",
-		g_wicImagingFactory.Get(), g_d2dDeviceContext.Get(), g_d2dBitmapMushroom.GetAddressOf());
+	hr = CreateBitmapFromFile(L"../Resource/mushroom.png",g_d2dBitmapMushroom.GetAddressOf());
 	assert(SUCCEEDED(hr));
 
 	// Effect
@@ -246,20 +214,6 @@ void InitD3DAndD2D(HWND hwnd)
 	g_shadowEffect->SetInputEffect(0, g_skewEffect.Get());
 	g_shadowEffect->SetValue(D2D1_COLORMATRIX_PROP_COLOR_MATRIX, shadowMatrix);
 
-	
-#if defined(_DEBUG)
-	{
-		ComPtr<IDXGIDebug1> dxgiDebug;
-		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiDebug)))) {
-			dxgiDebug->EnableLeakTrackingForThread();  // 리소스 누수 추적
-		}
-
-		ComPtr<IDXGIInfoQueue> dxgiInfoQueue;
-		if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&dxgiInfoQueue)))) {
-			dxgiInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, TRUE);
-		}
-	}
-#endif
 
 	//////////////////////////////////////////////////////////////////////////
 	// Screen 관련생성 Effect	
@@ -284,8 +238,7 @@ void InitD3DAndD2D(HWND hwnd)
 	);
 	assert(SUCCEEDED(hr));
 
-	hr = CreateD2DBitmapFromFile(L"../Resource/Blood.png",
-		g_wicImagingFactory.Get(), g_d2dDeviceContext.Get(), g_d2dBitmapBlood.GetAddressOf());
+	hr = CreateBitmapFromFile(L"../Resource/Blood.png", g_d2dBitmapBlood.GetAddressOf());
 	assert(SUCCEEDED(hr));
 
 	hr = g_d2dDeviceContext->CreateEffect(CLSID_D2D1Saturation, g_sceneEffect.GetAddressOf());
@@ -295,7 +248,7 @@ void InitD3DAndD2D(HWND hwnd)
 
 }
 
-void UninitD3DAndD2D()
+void Uninitialize()
 {
 	g_sceneEffect = nullptr;
 	g_d2dBitmapScene = nullptr;
@@ -358,7 +311,7 @@ void Render()
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	CoInitialize(nullptr);
+	
 
 	WNDCLASS wc = {};
 	wc.lpfnWndProc = WndProc;
@@ -376,8 +329,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
-	InitD3DAndD2D(g_hwnd);
 
+	CoInitialize(nullptr);
+	Initialize(g_hwnd);
 	// 메시지 루프
 	MSG msg = {};
 	while (msg.message != WM_QUIT) {
@@ -390,8 +344,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 	}
 
-	UninitD3DAndD2D();
-
+	Uninitialize();
 	CoUninitialize();
 	return 0;
 }

@@ -11,19 +11,20 @@
 
 using namespace Microsoft::WRL;
 
+
 // 전역 변수
 HWND g_hwnd = nullptr;
-
-IDXGISwapChain1* g_dxgiSwapChain = nullptr;
-ID2D1DeviceContext7* g_d2dDeviceContext = nullptr;
-ID2D1Bitmap1* g_d2dBitmapTarget = nullptr;
+ComPtr<ID3D11Device> g_d3dDevice;
+ComPtr<IDXGISwapChain1> g_dxgiSwapChain;
+ComPtr<ID2D1DeviceContext7> g_d2dDeviceContext;
+ComPtr<ID2D1Bitmap1> g_d2dBitmapTarget;
 
 UINT g_width = 800;
 UINT g_height = 600;
 
 // 윈도우 프로시저
-void InitD3DAndD2D(HWND hwnd);
-void UninitD3DAndD2D();
+void Initialize(HWND hwnd);
+void Uninitialize();
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -39,34 +40,34 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 // 초기화
-void InitD3DAndD2D(HWND hwnd)
+void Initialize(HWND hwnd)
 {
-	// D3D11 
-	ID3D11Device* d3dDevice = nullptr;
-	IDXGIDevice* dxgiDevice = nullptr;
-
+	// D3D11 디바이스 생성
 	D3D_FEATURE_LEVEL featureLevel;
 	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0 };
 	D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
 		D3D11_CREATE_DEVICE_BGRA_SUPPORT, levels, 1,
-		D3D11_SDK_VERSION, &d3dDevice, &featureLevel, nullptr);
-	
-	//g_d3dDevice->QueryInterface(IID_PPV_ARGS(&g_dxgiDevice));	
-	d3dDevice->QueryInterface(__uuidof(dxgiDevice), (void**)&dxgiDevice);
+		D3D11_SDK_VERSION, g_d3dDevice.GetAddressOf(), &featureLevel, nullptr);
 
-	// D2D1	
-	ID2D1Factory8* d2dFactory = nullptr;
-	ID2D1Device7* d2dDevice = nullptr;
+	// D2D 팩토리 및 디바이스
+	ComPtr<ID2D1Factory8> d2dFactory;
+	D2D1_FACTORY_OPTIONS options = {
+#ifdef _DEBUG
+		D2D1_DEBUG_LEVEL_INFORMATION
+#endif // _DEBUG
 
-	D2D1_FACTORY_OPTIONS options = {};
-	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, &d2dFactory);
-	d2dFactory->CreateDevice(dxgiDevice, &d2dDevice);	
-	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE,
-		&g_d2dDeviceContext);
+	};
+	D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, options, d2dFactory.GetAddressOf());
 
-	// DXGI
-	IDXGIFactory7* dxgiFactory = nullptr;	//
-	CreateDXGIFactory(__uuidof(dxgiFactory), (void**)&dxgiFactory);
+	ComPtr<IDXGIDevice> dxgiDevice;
+	g_d3dDevice.As(&dxgiDevice);
+	ComPtr<ID2D1Device7> d2dDevice;
+	d2dFactory->CreateDevice((dxgiDevice.Get()), d2dDevice.GetAddressOf());
+	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, g_d2dDeviceContext.GetAddressOf());
+
+	ComPtr<IDXGIFactory7> dxgiFactory;
+	CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
+
 
 	// SwapChain 생성
 	DXGI_SWAP_CHAIN_DESC1 scDesc = {};
@@ -77,29 +78,20 @@ void InitD3DAndD2D(HWND hwnd)
 	scDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	scDesc.BufferCount = 2;
 	scDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	dxgiFactory->CreateSwapChainForHwnd(d3dDevice, hwnd, &scDesc, nullptr, nullptr,
-		&g_dxgiSwapChain);
+	dxgiFactory->CreateSwapChainForHwnd(g_d3dDevice.Get(), hwnd, &scDesc, nullptr, nullptr, g_dxgiSwapChain.GetAddressOf());
 
-	// 백버퍼를 타겟으로 설정
-	IDXGISurface* backBuffer=nullptr;
-	g_dxgiSwapChain->GetBuffer(0, __uuidof(backBuffer), (void**)&backBuffer); 
+	// 스왑체인의 백버퍼를 사용하는 D2D1Bitmap1 인터페이스 생성 
+	ComPtr<IDXGISurface> backBuffer;
+	g_dxgiSwapChain->GetBuffer(0, IID_PPV_ARGS(&backBuffer));
 	D2D1_BITMAP_PROPERTIES1 bmpProps = D2D1::BitmapProperties1(
 		D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
 		D2D1::PixelFormat(scDesc.Format, D2D1_ALPHA_MODE_PREMULTIPLIED)
 	);
-	g_d2dDeviceContext->CreateBitmapFromDxgiSurface(backBuffer, &bmpProps, 
-		&g_d2dBitmapTarget);
-	g_d2dDeviceContext->SetTarget(g_d2dBitmapTarget);	
-
-	backBuffer->Release();
-	dxgiFactory->Release();
-	dxgiDevice->Release();	
-	d3dDevice->Release();
-	d2dFactory->Release();
-	d2dDevice->Release();
+	g_d2dDeviceContext->CreateBitmapFromDxgiSurface(backBuffer.Get(), &bmpProps, g_d2dBitmapTarget.GetAddressOf());
+	g_d2dDeviceContext->SetTarget(g_d2dBitmapTarget.Get());
 }
 
-void UninitD3DAndD2D()
+void Uninitialize()
 {
 	if (g_d2dDeviceContext) g_d2dDeviceContext->Release();
 	if (g_dxgiSwapChain) g_dxgiSwapChain->Release();
@@ -136,7 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
-	InitD3DAndD2D(g_hwnd);
+	Initialize(g_hwnd);
 
 	// 메시지 루프
 	MSG msg = {};
@@ -150,7 +142,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 	}
 
-	UninitD3DAndD2D(); 	
+	Uninitialize(); 	
 
 	CoUninitialize();
 	return 0;
