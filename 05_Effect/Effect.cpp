@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <assert.h>
 #include <wrl.h>  // ComPtr 사용을 위한 헤더
 
 #include <d3d11.h>
@@ -196,6 +197,7 @@ void InitD3DAndD2D(HWND hwnd)
 
 	hr = CreateD2DBitmapFromFile(L"../Resource/mushroom.png",
 		g_wicImagingFactory.Get(), g_d2dDeviceContext.Get(), g_d2dBitmapFromFile.GetAddressOf());
+	assert(SUCCEEDED(hr));
 
 
 	// Effect
@@ -229,13 +231,15 @@ void InitD3DAndD2D(HWND hwnd)
 
 void UninitD3DAndD2D()
 {
-	g_wicImagingFactory = nullptr;
-	g_d2dBitmapFromFile = nullptr;
+	g_skewEffect = nullptr;
+	g_shadowEffect = nullptr;	
+	g_d2dBitmapTarget = nullptr;
+	g_d2dBitmapFromFile = nullptr;	
 
+	g_wicImagingFactory = nullptr;
 	g_d3dDevice = nullptr;
 	g_dxgiSwapChain = nullptr;
 	g_d2dDeviceContext = nullptr;
-	g_d2dBitmapTarget = nullptr;
 }
 
 void Render()
@@ -274,6 +278,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
+	CoInitialize(nullptr);
 	InitD3DAndD2D(g_hwnd);
 
 	// 메시지 루프
@@ -289,5 +294,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 	}
 
 	UninitD3DAndD2D();
+	CoUninitialize();
 	return 0;
 }
