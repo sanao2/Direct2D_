@@ -103,7 +103,11 @@ void Render()
 	g_d2dDeviceContext->BeginDraw();
 	g_d2dDeviceContext->Clear(D2D1::ColorF(D2D1::ColorF::DarkSlateBlue));
 	g_d2dDeviceContext->EndDraw();
-	g_dxgiSwapChain->Present(1, 0);
+	
+	// 스왑체인이 생성한 버퍼의 메모리주소는 고정되고 
+	// 화면에보이는 버퍼(FrontBuffer), 그리는 대상이 되는(BackBuffer)의 인덱스를 변경한다.
+	g_dxgiSwapChain->Present(1,//모니터 리프레시 신호 몇 번을 기다릴 것인지 
+		0);  
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
