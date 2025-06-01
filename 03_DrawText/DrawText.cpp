@@ -31,8 +31,8 @@ UINT g_width = 800;
 UINT g_height = 600;
 bool g_resized = false;
 
-void InitD3DAndD2D(HWND hwnd);
-void UninitD3DAndD2D();
+void Initialize(HWND hwnd);
+void Uninitialize();
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -60,8 +60,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_EXITSIZEMOVE:
 		if (g_resized)
 		{
-			UninitD3DAndD2D();
-			InitD3DAndD2D(hWnd);
+			Uninitialize();
+			Initialize(hWnd);
 		}
 		break;
 	default:
@@ -71,7 +71,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 // 초기화
-void InitD3DAndD2D(HWND hwnd)
+void Initialize(HWND hwnd)
 {
 	// D3D11 디바이스 생성
 	D3D_FEATURE_LEVEL featureLevel;
@@ -143,7 +143,7 @@ void InitD3DAndD2D(HWND hwnd)
 	g_dWriteTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 }
 
-void UninitD3DAndD2D()
+void Uninitialize()
 {
 	g_d3dDevice = nullptr;
 	g_dxgiSwapChain = nullptr;
@@ -189,7 +189,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
-	InitD3DAndD2D(g_hwnd);
+	CoInitialize(nullptr);
+	Initialize(g_hwnd);
 
 	// 메시지 루프
 	MSG msg = {};
@@ -203,6 +204,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		}
 	}
 
-	UninitD3DAndD2D();
+	Uninitialize();
+	CoUninitialize();
 	return 0;
 }

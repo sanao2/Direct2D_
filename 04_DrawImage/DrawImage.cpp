@@ -260,6 +260,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
+	CoInitialize(nullptr);
 	Initialize(g_hwnd);
 
 	// 메시지 루프
@@ -270,10 +271,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 		else {
-			Render(); // 매 프레임마다 클리어
+			Render(); 
 		}
 	}
 
 	Uninitialize();
+	CoUninitialize();
 	return 0;
 }

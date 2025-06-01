@@ -23,8 +23,8 @@ UINT g_width = 800;
 UINT g_height = 600;
 bool g_resized = false;
 
-void InitD3DAndD2D(HWND hwnd);
-void UninitD3DAndD2D();
+void Initialize(HWND hwnd);
+void Uninitialize();
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -49,13 +49,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 	}
 	break;
-	case WM_EXITSIZEMOVE:
-		if (g_resized)
-		{
-			UninitD3DAndD2D();
-			InitD3DAndD2D(hWnd);
-		}
-		break;
 	default:
 		break;
 	}
@@ -63,7 +56,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 // 초기화
-void InitD3DAndD2D(HWND hwnd)
+void Initialize(HWND hwnd)
 {
 	// D3D11 디바이스 생성
 	D3D_FEATURE_LEVEL featureLevel;
@@ -116,7 +109,7 @@ void InitD3DAndD2D(HWND hwnd)
 	
 }
 
-void UninitD3DAndD2D()
+void Uninitialize()
 {
 	g_pBlackBrush = nullptr;	// 렌더타겟이 생성하는 리소스 역시 장치의존
 	g_pGrayBrush = nullptr;
@@ -175,8 +168,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
-	InitD3DAndD2D(g_hwnd);
-
+	CoInitialize(nullptr);
+	Initialize(g_hwnd);
 	// 메시지 루프
 	MSG msg = {};
 	while (msg.message != WM_QUIT) {
@@ -185,10 +178,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 			DispatchMessage(&msg);
 		}
 		else {
-			Render(); // 매 프레임마다 클리어
+			Render(); 
 		}
 	}
-
-	UninitD3DAndD2D();
+	Uninitialize();
+	CoUninitialize();
 	return 0;
 }

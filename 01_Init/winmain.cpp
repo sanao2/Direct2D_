@@ -108,10 +108,6 @@ void Render()
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	HRESULT hr = S_OK;
-	// COM 사용 시작
-	hr = CoInitialize(NULL);
-
 	WNDCLASS wc = {};
 	wc.lpfnWndProc = WndProc;
 	wc.hInstance = hInstance;
@@ -128,6 +124,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 		nullptr, nullptr, hInstance, nullptr);
 	ShowWindow(g_hwnd, nCmdShow);
 
+	// COM 사용 시작
+	CoInitialize(NULL);
 	Initialize(g_hwnd);
 
 	// 메시지 루프
