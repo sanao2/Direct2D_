@@ -136,9 +136,14 @@ void Initialize(HWND hwnd)
 	ComPtr<IDXGIDevice> dxgiDevice;
 	g_d3dDevice.As(&dxgiDevice);
 	ComPtr<ID2D1Device7> d2dDevice;
+
 	d2dFactory->CreateDevice((dxgiDevice.Get()), d2dDevice.GetAddressOf());
 	d2dDevice->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, g_d2dDeviceContext.GetAddressOf());
 
+	/// <summary>
+	/// 여기서부터가 SwapChain 클래스에서 가져가야 할 부분 
+	/// </summary>
+	/// <param name="hwnd"></param>
 	ComPtr<IDXGIFactory7> dxgiFactory;
 	CreateDXGIFactory(IID_PPV_ARGS(&dxgiFactory));
 
@@ -166,6 +171,14 @@ void Initialize(HWND hwnd)
 															  // IDXGISurface는 “DXGI 표준 Surface 인터페이스”로, GPU 상의 텍스처(또는 렌더 타겟)를 COM 인터페이스 형태로 다룰 때 사용
 															  // Direct2D가 바로 그 위에 그릴 수 있도록 연결되는 다리 역할을 한다. 
 	                                                          // 즉, 백버퍼를 가져와서 Direct2D의 이미지가 그려질 수 있는 Surface 로 전환 하는 것. 
+	/// <summary>
+	/// 여기까지가 SwapChin 클래스에서 가져가야 할 부분 
+	/// </summary>
+
+	/// <summary>
+	/// 여기서부터가 이미지 매니저가 가져가야 하는 부분 
+	/// </summary>
+	/// <param name="hwnd"></param>
 	D2D1_BITMAP_PROPERTIES1 bmpProps = D2D1::BitmapProperties1(
 		D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
 		// D2D1_BITMAP_OPTIONS_TARGET : “렌더 타겟(즉, 그려지는 대상)”으로 사용하겠다는 의미입니다. Direct2D의 ID2D1DeviceContext::SetTarget(...)에 바로 연결
@@ -192,6 +205,10 @@ void Initialize(HWND hwnd)
 
 	hr = CreateBitmapFromFile(L"../Resource/mushroom.png", g_d2dBitmapFromFile.GetAddressOf());
 	assert(SUCCEEDED(hr));
+	/// <summary>
+	/// 여기까지가 이미지 매니저가 가져가야 하는 부분 
+	/// </summary>
+	/// <param name="hwnd"></param>
 }
 
 void Uninitialize()
