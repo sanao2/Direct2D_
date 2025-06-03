@@ -281,7 +281,7 @@ void Render()
 	g_dxgiSwapChain->Present(1, 0);
 }
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	WNDCLASS wc = {};
 	wc.lpfnWndProc = WndProc;
